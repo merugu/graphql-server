@@ -1,114 +1,109 @@
 const graphql = require('graphql');
-const {persons, memberships, membershipTypes, contacts} = require('../staticdata')
+const Person = require('../models/person');
+const Department = require('../models/department');
+
 const _ = require('lodash');
 
-const {GraphQLObjectType, GraphQLInt, GraphQLString, GraphQLID, GraphQLSchema, GraphQLList} = graphql;
+const { GraphQLObjectType, GraphQLInt, GraphQLString, GraphQLID, GraphQLSchema, GraphQLList, GraphQLNonNull } = graphql;
 
-const person = new GraphQLObjectType({
- name: 'Person', 
- fields: () => ({
-     pid: {type: GraphQLID},
-     name: {type: GraphQLString},
-     age: {type: GraphQLInt},
-     sex: {type: GraphQLString},
-     contact: {
-         type: new GraphQLList(contact),
-         resolve(parent, args){
-             console.log(contacts);
-             return _.filter(contacts, {pid: parent.pid});
-         }
-     }
- })
-}); 
 
-const contact = new GraphQLObjectType({
-    name: 'Contact',
+const PersonType = new GraphQLObjectType({
+    name: 'Person',
     fields: () => ({
-        contactID: {type: GraphQLID},
-        contactType: {type: GraphQLString},
-        contactNumber: {type: GraphQLString} ,
-        pid: {type: GraphQLID}
-    })
-});
-
-const membershipType = new GraphQLObjectType({
-    name: 'MembershipType', 
-    fields: () => ({
-        membershipTypeID: {type: GraphQLID},
-        membershipTypeName: {type: GraphQLString}
-    })
-   }); 
-
-   const paymentType = new GraphQLObjectType({
-    name: 'PaymentType', 
-    fields: () => ({
-        paymentTypeID: {type: GraphQLID},
-        name: {type: GraphQLString}
-    })
-   }); 
-
-   const billingInfo = new GraphQLObjectType({
-    name: 'BillingInfo', 
-    fields: () => ({
-        billingid: {type: GraphQLID},
-        paymentTypeID: {type: GraphQLID},
-        pid: {type: GraphQLID}
-    })
-   }); 
-
-   const membership = new GraphQLObjectType({
-    name: 'Membership', 
-    fields: () => ({
-        membershipID: {type: GraphQLID},
-        membershipTypeID: {type: GraphQLID},
-        person: {
-            type: person,
-            resolve(parent, args) {
-                console.log(parent);
-               return _.find(persons, {pid: parent.pid});
-            }
-        },
-        membershipType: {
-            type: membershipType,
-            resolve(parent, args) {
-                return _.find(membershipTypes, {membershipTypeID: parent.membershipTypeID});
+        id: { type: GraphQLID },
+        name: { type: GraphQLString },
+        age: { type: GraphQLInt },
+        sex: { type: GraphQLString },
+        contact: { type: GraphQLString },
+        department: {
+            type: DepartmentType,
+            resolve(parent, args){
+                return Department.findById(parent.departmentID); 
             }
         }
     })
-   }); 
+});
 
-   const query = new GraphQLObjectType({
-       name: 'AllQueries', 
-       fields: {
-           person: {
-               type: person,
-               args: {pid: {type: GraphQLID}},
-               resolve(parent, args){
-                   return _.find(persons, {pid: args.pid});
-               }
-           },
-           membership: {
-               type: membership,
-               args: {membershipID: {type: GraphQLID}},
-               resolve(parent, args) {
-                   return _.find(memberships, {membershipID: args.membershipID});
-               }
-           },
-           membershipTypes: {
-               type: new GraphQLList(membershipType), 
-               resolve(parent, args) {
-                   return membershipTypes
-               }
-           },
-           memberships: {
-               type: new GraphQLList(membership),
-               resolve(parent, args) {
-                   return memberships;
-               }
-           }
-       }
-   })
+const DepartmentType = new GraphQLObjectType({
+    name: 'Department',
+    fields: () => ({
+        id: { type: GraphQLID },
+        departmentName: { type: GraphQLString }
+    })
+});
 
-   module.exports = new GraphQLSchema({
-       query: query
-   })
+
+const query = new GraphQLObjectType({
+    name: 'AllQueries',
+    fields: {
+        person: {
+            type: PersonType,
+            args: { id: { type: GraphQLID } },
+            resolve(parent, args){
+                return Person.findById(args.id);
+            }
+        },
+        department: {
+            type: DepartmentType,
+            args: { id: { type: GraphQLID } },
+            resolve(parent, args){
+                return Department.findById(args.id);
+            }
+        },
+        persons: {
+            type: new GraphQLList(PersonType),
+            resolve(parent, args){
+                return Person.find({});
+            }
+        },
+        departments: {
+            type: new GraphQLList(DepartmentType),
+            resolve(parent, args){
+                return Department.find({});
+            }
+        }
+    }
+});
+
+const Mutation = new GraphQLObjectType({
+    name: 'Mutation',
+    fields: {
+        addPerson: {
+            type: PersonType,
+            args: {
+                name: { type: GraphQLString },
+                age: { type: GraphQLInt },
+                sex: { type: GraphQLString },
+                contact: { type: GraphQLString },
+                departmentID: { type: GraphQLString },
+            },
+            resolve(parent, args){
+                let person = new Person({
+                    name: args.name,
+                    age: args.age,
+                    sex: args.sex,
+                    contact: args.contact,
+                    departmentID: args.departmentID,
+                });
+                return person.save();
+            }
+        },
+        addDepartment: {
+            type: DepartmentType,
+            args: {
+                departmentName: { type: new GraphQLNonNull(GraphQLString) }
+            },
+            resolve(parent, args){
+                let department = new Department({
+                    departmentName: args.departmentName
+                });
+                return department.save();
+            }
+        }
+    }
+});
+
+module.exports = new GraphQLSchema({
+    query: query,
+    mutation: Mutation
+})

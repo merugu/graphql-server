@@ -1,9 +1,0 @@
-const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
-
-const membershipTypeSchema = new Schema({
-     membershipTypeID: Integer,
-     membershipTypeName: String
-})
-
-module.exports = mongoose.model('MembershipType', membershipTypeSchema);
